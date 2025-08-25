@@ -1,0 +1,23 @@
+server:
+  port: 8080
+
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: auth-service
+              uri: http://localhost:8079
+              predicates:
+                - Path=/auth/**
+            - id: user-service
+              uri: http://localhost:8081
+              predicates:
+                - Path=/users/**
+                - Path=/cards/**
+            - id: order-service
+              uri: http://localhost:8078
+              predicates:
+                - Path=/orders/**
+                - Path=/items/**

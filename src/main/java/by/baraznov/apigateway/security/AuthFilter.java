@@ -19,7 +19,7 @@ public class AuthFilter implements GlobalFilter {
 
     private static final List<String> PUBLIC_PATHS = List.of(
             "/auth/login",
-            "/auth/register",
+            "/auth/registration",
             "/auth/refresh"
     );
 

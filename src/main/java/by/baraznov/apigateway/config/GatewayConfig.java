@@ -1,4 +1,4 @@
-package by.baraznov.apigateway;
+package by.baraznov.apigateway.config;
 
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
@@ -11,8 +11,9 @@ public class GatewayConfig {
     @Bean
     public RouteLocator customRoutes(RouteLocatorBuilder builder) {
         return builder.routes()
-                .route("auth-service",
-                        r -> r.path("/auth/**")
+                .route("auth-service", r -> r.path("/auth/**")
+                        .and()
+                        .predicate(p -> !p.getRequest().getPath().equals("/auth/registration"))
                         .uri("http://localhost:8079"))
 
                 .route("user-service",

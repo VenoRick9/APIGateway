@@ -2,6 +2,7 @@ package by.baraznov.apigateway.security;
 
 import io.jsonwebtoken.JwtException;
 import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.http.HttpHeaders;
@@ -16,18 +17,15 @@ import java.util.List;
 @AllArgsConstructor
 public class AuthFilter implements GlobalFilter {
     private final JwtProvider jwtProvider;
+    @Value("${gateway.public-paths}")
+    private List<String> publicPaths;
 
-    private static final List<String> PUBLIC_PATHS = List.of(
-            "/auth/login",
-            "/auth/registration",
-            "/auth/refresh"
-    );
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
 
-        if (PUBLIC_PATHS.stream().anyMatch(path::startsWith)) {
+        if (publicPaths.stream().anyMatch(path::startsWith)) {
             return chain.filter(exchange);
         }
 

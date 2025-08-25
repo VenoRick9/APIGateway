@@ -5,6 +5,7 @@ import by.baraznov.apigateway.dto.RegistrationDTO;
 import by.baraznov.apigateway.dto.TokenResponseDTO;
 import by.baraznov.apigateway.dto.UserCreateDTO;
 import by.baraznov.apigateway.dto.UserGetDTO;
+import by.baraznov.apigateway.util.RegistrationFailed;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -46,7 +47,7 @@ public class RegistrationController {
                                     .uri("/users/{id}", user.id())
                                     .retrieve()
                                     .bodyToMono(Void.class)
-                                    .then(Mono.error(new RuntimeException("Registration failed, rollback done"))));
+                                    .then(Mono.error(new RegistrationFailed("Registration failed, rollback done"))));
                 })
                 .map(tokens -> ResponseEntity.status(HttpStatus.CREATED).body(tokens));
     }

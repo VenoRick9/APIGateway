@@ -8,6 +8,7 @@ build/
 
 #Ignore local properties
 application-local.properties
+application-docker.properties
 
 ### STS ###
 .apt_generated

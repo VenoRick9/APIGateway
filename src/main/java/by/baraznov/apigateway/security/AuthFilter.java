@@ -16,7 +16,9 @@ import java.util.List;
 @Component
 @AllArgsConstructor
 public class AuthFilter implements GlobalFilter {
+
     private final JwtProvider jwtProvider;
+
     @Value("${gateway.public-paths}")
     private List<String> publicPaths;
 
@@ -36,8 +38,11 @@ public class AuthFilter implements GlobalFilter {
         }
 
         String token = authHeader.substring(7);
+
         try {
             jwtProvider.validateToken(token);
+
+
         } catch (JwtException e) {
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
@@ -46,3 +51,4 @@ public class AuthFilter implements GlobalFilter {
         return chain.filter(exchange);
     }
 }
+

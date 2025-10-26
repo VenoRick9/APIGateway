@@ -11,6 +11,8 @@ public class WebClientConfig {
     private String userUrl;
     @Value("${auth.service.url}")
     private String authUrl;
+    @Value("${keycloak.service.url}")
+    private String keycloakUrl;
 
     @Bean
     public WebClient userClient() {
@@ -23,6 +25,12 @@ public class WebClientConfig {
     public WebClient authClient() {
         return WebClient.builder()
                 .baseUrl(authUrl)
+                .build();
+    }
+    @Bean
+    public WebClient keycloakClient() {
+        return WebClient.builder()
+                .baseUrl(keycloakUrl)
                 .build();
     }
 }

@@ -1,44 +1,73 @@
 package by.baraznov.apigateway.security;
-
 import by.baraznov.apigateway.util.jwt.JwtExpiredException;
-import by.baraznov.apigateway.util.jwt.JwtMalformedException;
-import by.baraznov.apigateway.util.jwt.JwtSignatureException;
 import by.baraznov.apigateway.util.jwt.JwtValidationException;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
-import io.jsonwebtoken.security.SignatureException;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.crypto.RSASSAVerifier;
+import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jwt.SignedJWT;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
+import java.io.IOException;
+import java.net.URL;
+import java.security.interfaces.RSAPublicKey;
+import java.text.ParseException;
+import java.time.Instant;
+import java.util.Date;
 
 @Component
 public class JwtProvider {
-    private final SecretKey jwtAccessSecret;
 
-    public JwtProvider(
-            @Value("${jwt.secret.access}") String jwtAccessSecret
-    ) {
-        this.jwtAccessSecret = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtAccessSecret));
+    @Value("${keycloak.url}")
+    private String JWKS_URL;
+
+    private JWKSet jwkSet;
+    private Instant jwkSetExpiry;
+    private static final long CACHE_DURATION_SECONDS = 300;
+
+    public JwtProvider() {
+        this.jwkSet = null;
+        this.jwkSetExpiry = Instant.EPOCH;
+    }
+
+    private synchronized void loadJwkSetIfNeeded() throws IOException, ParseException {
+        Instant now = Instant.now();
+        if (jwkSet == null || now.isAfter(jwkSetExpiry)) {
+            this.jwkSet = JWKSet.load(new URL(JWKS_URL));
+            this.jwkSetExpiry = now.plusSeconds(CACHE_DURATION_SECONDS);
+        }
     }
 
     public void validateToken(String token) {
         try {
-            Jwts.parserBuilder()
-                    .setSigningKey(jwtAccessSecret)
-                    .build()
-                    .parseClaimsJws(token);
-        } catch (ExpiredJwtException expEx) {
-            throw new JwtExpiredException("Expired JWT token");
-        } catch (SignatureException sEx) {
-            throw new JwtSignatureException("Token signature is invalid");
-        } catch (MalformedJwtException mjEx) {
-            throw new JwtMalformedException("Malformed JWT token");
-        } catch (Exception e) {
-            throw new JwtValidationException("Invalid JWT token");
+            loadJwkSetIfNeeded();
+
+            SignedJWT signedJWT = SignedJWT.parse(token);
+            String kid = signedJWT.getHeader().getKeyID();
+            JWK jwk = jwkSet.getKeyByKeyId(kid);
+            if (jwk == null) {
+                this.jwkSet = JWKSet.load(new URL(JWKS_URL));
+                jwk = jwkSet.getKeyByKeyId(kid);
+                if (jwk == null) {
+                    throw new RuntimeException("Public key not found for kid: " + kid);
+                }
+            }
+
+            RSAPublicKey publicKey = ((RSAKey) jwk).toRSAPublicKey();
+
+            if (!signedJWT.verify(new RSASSAVerifier(publicKey))) {
+                throw new JwtValidationException("Invalid JWT signature");
+            }
+
+            Date exp = signedJWT.getJWTClaimsSet().getExpirationTime();
+            if (exp.before(new Date())) {
+                throw new JwtExpiredException("JWT token expired");
+            }
+
+        } catch (ParseException | JOSEException | IOException e) {
+            throw new RuntimeException("JWT validation failed", e);
         }
     }
 }

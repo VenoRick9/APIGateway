@@ -8,6 +8,7 @@ import by.baraznov.apigateway.dto.UserCreateDTO;
 import by.baraznov.apigateway.dto.UserGetDTO;
 import by.baraznov.apigateway.util.RegistrationFailed;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,7 +22,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -30,22 +30,42 @@ public class RegistrationController {
     private final WebClient userClient;
     private final WebClient keycloakClient;
 
+    @Value("${keycloak.admin.realm}")
+    private String adminRealm;
+
+    @Value("${keycloak.admin.username}")
+    private String adminUsername;
+
+    @Value("${keycloak.admin.password}")
+    private String adminPassword;
+
+    @Value("${keycloak.admin.client-id}")
+    private String adminClientId;
+
+    @Value("${keycloak.realm}")
+    private String targetRealm;
+
     @PostMapping("/registration")
     public Mono<ResponseEntity<UserGetDTO>> register(@RequestBody RegistrationDTO dto) {
         return keycloakClient.post()
-                .uri("/realms/master/protocol/openid-connect/token")
+                .uri("/realms/" + adminRealm + "/protocol/openid-connect/token")
                 .header("Content-Type", "application/x-www-form-urlencoded")
-                .bodyValue("grant_type=password&client_id=admin-cli&username=admin&password=admin")
+                .bodyValue(String.format(
+                        "grant_type=password&client_id=%s&username=%s&password=%s",
+                        adminClientId, adminUsername, adminPassword
+                ))
                 .retrieve()
                 .bodyToMono(Map.class)
                 .flatMap(tokenResp -> {
                     String accessToken = (String) tokenResp.get("access_token");
+
                     Map<String, Object> kcPayload = new HashMap<>();
                     kcPayload.put("username", dto.login());
                     kcPayload.put("email", dto.email());
                     kcPayload.put("firstName", dto.name());
                     kcPayload.put("lastName", dto.surname());
                     kcPayload.put("enabled", true);
+
                     Map<String, Object> credentials = new HashMap<>();
                     credentials.put("type", "password");
                     credentials.put("value", dto.password());
@@ -53,7 +73,7 @@ public class RegistrationController {
                     kcPayload.put("credentials", List.of(credentials));
 
                     return keycloakClient.post()
-                            .uri("/admin/realms/innowise-shop/users")
+                            .uri("/admin/realms/" + targetRealm + "/users")
                             .header("Authorization", "Bearer " + accessToken)
                             .bodyValue(kcPayload)
                             .retrieve()
@@ -61,7 +81,7 @@ public class RegistrationController {
                             .then(
                                     keycloakClient.get()
                                             .uri(uriBuilder -> uriBuilder
-                                                    .path("/admin/realms/innowise-shop/users")
+                                                    .path("/admin/realms/" + targetRealm + "/users")
                                                     .queryParam("username", dto.login())
                                                     .build())
                                             .header("Authorization", "Bearer " + accessToken)
@@ -85,9 +105,6 @@ public class RegistrationController {
                             .retrieve()
                             .bodyToMono(UserGetDTO.class);
                 })
-                .map(user -> ResponseEntity.status(HttpStatus.CREATED).body(user))
-                .onErrorResume(kcError -> Mono.error(new RegistrationFailed(
-                        "Failed to register user in Keycloak", kcError)));
+                .map(user -> ResponseEntity.status(HttpStatus.CREATED).body(user));
     }
-
 }

@@ -5,6 +5,7 @@ import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 public class GatewayConfig {
@@ -16,6 +17,8 @@ public class GatewayConfig {
     private String orderUrl;
     @Value("${payment.service.url}")
     private String paymentUrl;
+    @Value("${gateway.service.url}")
+    private String gatewayUrl;
 
 
     @Bean
@@ -28,7 +31,8 @@ public class GatewayConfig {
 
                 .route("user-service",
                         r -> r.path("/users/**", "/cards/**")
-                        .uri(userUrl))
+                                .uri(userUrl))
+
 
                 .route("order-service", r -> r.path("/orders/**", "/items/**")
                         .uri(orderUrl))

@@ -1,8 +1,6 @@
 package by.baraznov.apigateway.controller;
 
 
-import by.baraznov.apigateway.dto.FrontendRegistrationRequest;
-import by.baraznov.apigateway.dto.KeycloakUserCreateDTO;
 import by.baraznov.apigateway.dto.KeycloakUserGetDTO;
 import by.baraznov.apigateway.dto.RegistrationDTO;
 

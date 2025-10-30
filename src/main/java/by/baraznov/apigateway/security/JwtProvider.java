@@ -16,6 +16,7 @@ import java.security.interfaces.RSAPublicKey;
 import java.text.ParseException;
 import java.time.Instant;
 import java.util.Date;
+import java.util.UUID;
 
 @Component
 public class JwtProvider {
@@ -67,6 +68,26 @@ public class JwtProvider {
             }
 
         } catch (ParseException | JOSEException | IOException e) {
+            throw new RuntimeException("JWT validation failed", e);
+        }
+    }
+
+    public UUID getAccessClaims(String token) {
+        try {
+            loadJwkSetIfNeeded();
+
+            SignedJWT signedJWT = SignedJWT.parse(token);
+            String kid = signedJWT.getHeader().getKeyID();
+            JWK jwk = jwkSet.getKeyByKeyId(kid);
+            if (jwk == null) {
+                this.jwkSet = JWKSet.load(new URL(JWKS_URL));
+                jwk = jwkSet.getKeyByKeyId(kid);
+                if (jwk == null) {
+                    throw new RuntimeException("Public key not found for kid: " + kid);
+                }
+            }
+            return UUID.fromString(signedJWT.getJWTClaimsSet().getSubject());
+        } catch (ParseException | IOException e) {
             throw new RuntimeException("JWT validation failed", e);
         }
     }
